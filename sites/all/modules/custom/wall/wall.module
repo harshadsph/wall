@@ -56,12 +56,128 @@ function add_wall_poster_form($form, &$form_submit){
 	);
 	
 	$form['submit'] = array(
-			'#type' => 'submit', 
+			'#type' => 'submit',
+			'#ajax' => array(
+			  'callback' => 'wall_submit_driven_callback',
+			  'wrapper' => 'ADDIMAGE-OUTPUT',
+			),
 			'#value' => t('Next'),
 			'#attributes' => array('class' => array('addbutton')),
 	); 
+	
+	 $form['ADDIMAGE-OUTPUT'] = array(
+		'#type' => 'markup',
+		'#prefix' => '<div id="ADDIMAGE-OUTPUT">',
+		'#suffix' => '</div>',
+		'#markup' => '',
+	 );
+
 
 	return $form;
+}
+
+/**
+ * Callback for submit_driven example.
+ */
+function wall_submit_driven_callback($form, $form_state) {
+	
+	$element = $form['ADDIMAGE-OUTPUT'];
+	$element['#markup'] = $form['ADDIMAGE']['#value']. date('c');
+	
+	media_internet_add_submit($form, $form_state);
+	return $element;
+}
+
+/**
+ * Upload a file from a URL.
+ *
+ * This will copy a file from a remote location and store it locally.
+ *
+ * @see media_parse_to_uri()
+ * @see media_parse_to_file()
+ */
+function media_internet_add_submit($form, &$form_state) {
+  $embed_code = $form_state['ADDIMAGE']['#value'];
+  try {
+    // Save the remote file
+    $provider = media_internet_get_provider($embed_code);
+    // Providers decide if they need to save locally or somewhere else.
+    // This method returns a file object
+    $file = $provider->save();
+  }
+  catch (Exception $e) {
+    form_set_error('embed_code', $e->getMessage());
+    return;
+  }
+
+  if (!$file->fid) {
+    form_set_error('embed_code', t('The file %file could not be saved. An unknown error has occurred.', array('%file' => $embed_code)));
+    return;
+  }
+
+  $form_state['redirect'] = array('media/browser', array('query' => array('render' => 'media-popup', 'fid' => $file->fid)));
+}
+
+/**
+ * Finds the appropriate provider for a given URL or embed_string
+ *
+ * Each provider has a claim() method which it uses to tell media_internet
+ * that it should handle this input.  We cycle through all providers to find
+ * the right one.
+ *
+ * @todo: Make this into a normal hook or something because we have to instantiate
+ * each class to test and that's not right.
+ */
+function media_internet_get_provider($embed_string) {
+	print($embed_string);	
+	foreach (media_internet_get_providers() as $class_name => $nothing) {
+		$p = new $class_name($embed_string);
+		if ($p->claim($embed_string)) {
+			return $p;
+		}
+	}	
+  throw new MediaInternetNoHandlerException(t('Unable to handle the provided embed string or URL.'));
+}
+
+
+/**
+ * Gets the list of providers.
+ *
+ * A "Provider" is a bit of meta-data like a title and a logo and a class which
+ * can handle saving remote files.  Each provider is able to parse an embed code or URL
+ * and store it as a file object in file_managed.
+ */
+function media_internet_get_providers() {
+  $providers = &drupal_static(__FUNCTION__);
+
+  if (!isset($providers)) {
+    $cid = 'media:internet:providers';
+    if ($cache = cache_get($cid)) {
+      $providers = $cache->data;
+	  dpm($providers);
+    }
+    else {
+      $providers = array();
+      foreach (module_implements('media_internet_providers') as $module) {
+        foreach (module_invoke($module, 'media_internet_providers') as $key => $provider) {
+          // Store the module here too for convinience.
+          $providers[$key] = $provider;
+          $providers[$key]['module'] = $module;
+          if (!isset($providers[$key]['weight'])) {
+            $providers[$key]['weight'] = 0;
+          }
+        }
+      }
+      uasort($providers, 'drupal_sort_weight');
+      cache_set($cid, $providers);
+    }
+  }
+
+  return $providers;
+}
+
+class MediaInternetNoHandlerException extends Exception {
+
 }
 
 

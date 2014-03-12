@@ -184,6 +184,7 @@ function media_internet_get_providers() {
   if (!isset($providers)) {
     $cid = 'media:internet:providers';
     if ($cache = cache_get($cid)) {
+		echo $providers;
       $providers = $cache->data;
     }
     else {
