@@ -1,0 +1,74 @@
+ <?php
+ 
+ /**
+ * Implementation of hook_init().
+ */
+function wall_init() {
+	// Load required js and css files.
+	$path = drupal_get_path('module', 'wall');
+	drupal_add_js($path . '/js/script.js');
+}
+ 
+/**
+ * Implementation of hook_menu().
+ */ 
+
+ function wall_menu() {
+  $items['wall/add/%'] = array(
+	'page callback' => '_process_image',			
+	'access callback' => TRUE,
+	'page arguments' => array(1), 
+	'file' => 'wall.admin.inc',	
+  );
+  return $items;
+}
+
+function wall_block_info() {
+  $blocks = array();
+  $blocks['add_wall_poster'] = array(
+    'info' => t('Add Wall Poster'),    
+    'status' => TRUE,     
+  );
+  return $blocks;
+}
+
+
+function wall_block_view($delta = '') {
+  // The $delta parameter tells us which block is being requested.
+  $block = array();
+  switch ($delta) {
+    case 'add_wall_poster':
+      // Create your block content here
+      $block['subject'] = t('Add Wall Poster');
+      $block['content'] = drupal_get_form('add_wall_poster_form');
+      break;
+  }
+  return $block;
+}
+
+function add_wall_poster_form($form, &$form_submit){
+	
+	$form['ADDIMAGE'] = array(
+			'#type' => 'textfield',
+			'#title' => t(''),
+			'#description' => t('Add image url'),
+			'#attributes' => array('class' => array('addimage')),
+	);
+	
+	$form['submit'] = array(
+			'#type' => 'submit', 
+			'#value' => t('Next'),
+			'#attributes' => array('class' => array('addbutton')),
+	); 
+
+	return $form;
+}
+
+
+
+ 
+ 
+ 
+ 
+ 
+ 
